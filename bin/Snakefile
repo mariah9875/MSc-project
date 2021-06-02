@@ -1,0 +1,359 @@
+# Master thesis project, 60-credit.
+
+configfile: "config.yaml"
+
+rule all:
+	input:
+
+		"results/QC/trimmed/multiQC/multiqc.html",
+		expand("results/sorted_bam/version_1/{sample}_sorted.bam.bai", sample=config["samples"]),
+		expand("results/sorted_bam/version_2/{sample}_sorted.bam.bai", sample=config["samples"]),
+		"results/featureCounts/version_1/counts_transc_gencode.v36.csv",
+		"results/featureCounts/version_2/counts_transc_v2_gencode.v36.csv"
+		expand("results/stringTie/version_1/assembly/{sample}.gtf", sample=config["samples"]),
+		expand("results/stringTie/version_1/assembly_newGTF/{sample}/{sample}.gtf", sample=config["samples"]),
+		"results/stringTie/version_1/counts/transcript_countmatrix.csv",
+		expand("results/bigwig/version_1/{sample}_sorted.bw", sample=config["samples"]),
+		expand("results/bigwig/version_2/{sample}_sorted.bw", sample=config["samples"]),
+
+
+
+rule fastqc:
+	# Run FastQC on a FASTQ files.
+	input:
+		"../data/trimmed/{sample}.fastq"
+	output:
+		"results/QC/trimmed/fastQC/{sample}_fastqc.html",
+		"results/QC/trimmed/fastQC/{sample}_fastqc.zip"
+	priority: 15
+	shell:
+	# Run fastQC
+		"""
+		module load fastqc/0.11.3
+		fastqc {input} -t 6 -o results/QC/trimmed/fastQC/
+		module purge
+		"""
+
+rule multiqc:
+	# Run MultiQC on the fastqc.zip files
+	input:
+		expand("results/QC/trimmed/fastQC/{sample}_fastqc.zip", sample=config["samples"])
+	output:
+		html = "results/QC/trimmed/multiQC/multiqc.html",
+		stats = "results/QC/trimmed/multiQC/multiqc_general_stats.txt"
+	priority: 14
+	log:
+		"results/logs/trimmed/multiQC/multiqc.log"
+	shell:
+	# Run MulitQC
+		"""
+		module load icc/2017.4.196-GCC-6.4.0-2.28
+		module load impi/2017.3.196
+		module load ifort/2017.4.196-GCC-6.4.0-2.28
+		module load impi/2017.3.196
+		module load MultiQC/1.2-Python-2.7.14
+		multiqc -n multiqc.html {input} 2> {log}
+		mv multiqc.html {output.html}
+		mv multiqc_data/multiqc_general_stats.txt {output.stats}
+		mv multiqc_data results/QC/trimmed/multiQC
+		module purge
+		"""
+
+rule STAR_mapping_v1:
+	# Align reads to reference genome with default parameters
+	input:
+		sample="../data/trimmed/{sample}.fastq",
+		genome="/projects/fs1/common/genome/lunarc/indicies/star/human/hg38",
+		GTF="/projects/fs1/marhall/data/annotation_files/gencode.v36.annotation.gtf"
+
+	output:
+		"results/Mapping/STAR/version_1/{sample}_Aligned.out.bam",
+		"results/Mapping/STAR/version_1/{sample}_Log.final.out"
+	priority: 13
+	shell:
+		"""
+		module load GCC/5.4.0-2.26
+		module load OpenMPI/1.10.3
+		module load STAR/2.6.0c
+
+		STAR --runThreadN 10 \
+		--readFilesIn {input.sample} \
+		--genomeDir {input.genome} \
+		--outSAMtype BAM Unsorted \
+		--outSAMunmapped Within \
+		--sjdbGTFfile {input.GTF} \
+		--outFileNamePrefix {wildcards.sample}_
+
+		mv {wildcards.sample}_Aligned.out.bam {output[0]}
+		mv {wildcards.sample}_Log.final.out {output[1]}
+		mv {wildcards.sample}_Log.out {wildcards.sample}_Log.progress.out {wildcards.sample}_SJ.out.tab results/logs/STAR/version_1
+		mv {wildcards.sample}__STARgenome results/Mapping/STAR/version_1
+
+		module purge
+		"""
+
+rule STAR_mapping_v2:
+	# Align reads to reference genome with default parameters + additonal parameters
+	input:
+		sample="../data/trimmed/{sample}.fastq",
+		genome="/projects/fs1/common/genome/lunarc/indicies/star/human/hg38",
+		GTF="/projects/fs1/marhall/data/annotation_files/gencode.v36.annotation.gtf"
+
+	output:
+		"results/Mapping/STAR/version_2/{sample}_Aligned.out.bam",
+		"results/logs/STAR/version_2/{sample}_Log.final.out"
+	priority: 12
+	shell:
+		"""
+
+		module load GCC/5.4.0-2.26
+		module load OpenMPI/1.10.3
+		module load STAR/2.6.0c
+
+		STAR --runThreadN 10 \
+		--readFilesIn {input.sample} \
+		--genomeDir {input.genome} \
+		--outSAMtype BAM Unsorted \
+		--outSAMunmapped Within \
+		--sjdbGTFfile {input.GTF} \
+		--outFilterMismatchNoverLmax 0.05 \
+		--outFilterMatchNmin 16 \
+		--outFilterScoreMinOverLread 0 \
+		--outFilterMatchNminOverLread 0 \
+		--alignIntronMax 1 \
+		--outFileNamePrefix {wildcards.sample}_
+
+
+		mv {wildcards.sample}_Aligned.out.bam {output[0]}
+		mv {wildcards.sample}_Log.final.out {output[1]}
+		mv {wildcards.sample}_Log.out {wildcards.sample}_Log.progress.out {wildcards.sample}_SJ.out.tab results/logs/STAR/version_2
+		mv {wildcards.sample}__STARgenome results/Mapping/STAR/version_2
+
+		module purge
+		"""
+
+rule sort_bam_v1:
+	# Sort bam files
+	input:
+		"results/Mapping/STAR/version_1/{sample}_Aligned.out.bam"
+	output:
+		"results/sorted_bam/version_1/{sample}_sorted.bam"
+	priority: 11
+	shell:
+		"""
+		module load icc/2017.4.196-GCC-6.4.0-2.28  impi/2017.3.196
+		module load ifort/2017.4.196-GCC-6.4.0-2.28  impi/2017.3.196
+		module load SAMtools/1.6
+
+		samtools sort {input} -o {output}
+
+		module purge
+		"""
+rule index_bam_v1:
+	# index bam files
+	input:
+		"results/sorted_bam/version_1/{sample}_sorted.bam"
+	output:
+		"results/sorted_bam/version_1/{sample}_sorted.bam.bai"
+	priority: 10
+	shell:
+		"""
+		module load icc/2017.4.196-GCC-6.4.0-2.28  impi/2017.3.196
+		module load ifort/2017.4.196-GCC-6.4.0-2.28  impi/2017.3.196
+		module load SAMtools/1.6
+
+		samtools index {input}
+
+		module purge
+
+		"""
+rule sort_bam_v2:
+	# Sort bam files
+	input:
+		"results/Mapping/STAR/version_2/{sample}_Aligned.out.bam"
+	output:
+		"results/sorted_bam/version_2/{sample}_sorted.bam"
+	priority: 9
+	shell:
+		"""
+		module load icc/2017.4.196-GCC-6.4.0-2.28  impi/2017.3.196
+		module load ifort/2017.4.196-GCC-6.4.0-2.28  impi/2017.3.196
+		module load SAMtools/1.6
+
+		samtools sort {input} -o {output}
+
+		module purge
+		"""
+rule index_bam_v2:
+	# index bam files
+	input:
+		"results/sorted_bam/version_2/{sample}_sorted.bam"
+	output:
+		"results/sorted_bam/version_2/{sample}_sorted.bam.bai"
+	priority: 8
+	shell:
+		"""
+		module load icc/2017.4.196-GCC-6.4.0-2.28  impi/2017.3.196
+		module load ifort/2017.4.196-GCC-6.4.0-2.28  impi/2017.3.196
+		module load SAMtools/1.6
+
+		samtools index {input}
+
+		module purge
+
+		"""
+
+
+rule featureCounts:
+	# Quantify sorted bam files with gencode.v36 annotation file
+	input:
+		GTF="../data/annotation_files/gencode.v36.annotation.gtf",
+		bam=expand("results/sorted_bam/version_1/{sample}_sorted.bam", sample=config["samples"])
+	output:
+		"results/featureCounts/version_1/counts_transc_gencode.v36.csv"
+	priority: 7
+
+	shell:
+		"""
+		module load GCC/7.3.0-2.30
+		module load OpenMPI/3.1.1
+		module load Subread/1.6.3
+
+		featureCounts -T 8 -s 0 -a {input.GTF} -o {output} {input.bam} -F GTF -t exon -g transcript_id
+
+
+		module purge
+		"""
+rule featureCounts_v2:
+	# Quantify sorted bam files with gencode.v36 annotation file
+	input:
+		GTF="../data/annotation_files/gencode.v36.annotation.gtf",
+		bam=expand("results/sorted_bam/version_2/{sample}_sorted.bam", sample=config["samples"])
+	output:
+		"results/featureCounts/version_2/counts_transc_v2_gencode.v36.csv"
+	priority: 7
+
+	shell:
+		"""
+		module load GCC/7.3.0-2.30
+		module load OpenMPI/3.1.1
+		module load Subread/1.6.3
+
+		featureCounts -T 8 -s 0 -a {input.GTF} -o {output} {input.bam} -F GTF -t exon -g transcript_id
+
+
+		module purge
+		"""
+
+
+rule stringTie_assembly:
+	# Transcriptome assembly, assemble the read alignments
+	input:
+		GTF="../data/annotation_files/gencode.v36.annotation.gtf",
+		sample="results/sorted_bam/version_1/{sample}_sorted.bam"
+
+	output:
+		"results/stringTie/version_1/assembly/{sample}.gtf"
+
+	priority: 6
+
+	shell:
+		"""
+		module load GCC/6.4.0-2.28
+   		module load OpenMPI/2.1.1
+		module load StringTie/1.3.3b
+
+		stringtie {input.sample} -l {wildcards.sample} -G {input.GTF} -o {output} -m 30
+
+		module purge
+		"""
+
+rule stringTie_merge:
+	# merge the assembled transcripts, to have a non-redundant set of transcripts
+	input:
+		GTF="../data/annotation_files/gencode.v36.annotation.gtf",
+		List="bin/mergelist.txt"
+	output:
+		"results/stringTie/version_1/merged/stringtie_merged.gtf"
+
+	priority: 5
+
+	shell:
+		"""
+		module load GCC/6.4.0-2.28
+		module load OpenMPI/2.1.1
+		module load StringTie/1.3.3b
+
+		stringtie --merge -G {input.GTF} -o {output} {input.List}
+
+		module purge
+
+		"""
+
+rule stringTie_with_newGTF:
+	# run transcript assembly again with the new merged GTF file.
+	input:
+		GTF="results/stringTie/version_1/merged/stringtie_merged.gtf",
+		sample="results/sorted_bam/version_1/{sample}_sorted.bam"
+
+	output:
+		"results/stringTie/version_1/assembly_newGTF/{sample}/{sample}.gtf"
+	priority: 4
+
+	shell:
+		"""
+		module load GCC/6.4.0-2.28
+		module load OpenMPI/2.1.1
+		module load StringTie/1.3.3b
+
+		stringtie {input.sample} -l {wildcards.sample} -m 30 -G {input.GTF} -o {output} -e -B
+
+		module purge
+		"""
+
+rule stringTie_count:
+	# Quantify sorted bam files with stringTie parser.py file
+	input:
+		files="bin/mergelist_2.txt"
+	output:
+		"results/stringTie/version_1/counts/transcript_countmatrix.csv"
+	priority: 3
+	shell:
+		"""
+		bin/prep.py -i {input.files} -t {output}
+		"""
+
+rule bigwig_files_v1:
+	# change bam files to bigwig files to upload on UCSC browser.
+	input:
+		"results/sorted_bam/version_1/{sample}_sorted.bam"
+	output:
+		"results/bigwig/version_1/{sample}_sorted.bw"
+	priority: 2
+	shell:
+		"""
+		module load GCC/7.3.0-2.30  OpenMPI/3.1.1
+		module load deepTools/2.5.4-Python-3.6.6
+
+		bamCoverage -b {input} -o {output}
+
+		module purge
+
+		"""
+rule bigwig_files_v2:
+	# change bam files to bigwig files to upload on UCSC browser.
+	input:
+		"results/sorted_bam/version_2/{sample}_sorted.bam"
+	output:
+		"results/bigwig/version_2/{sample}_sorted.bw"
+	priority: 1
+	shell:
+		"""
+		module load GCC/7.3.0-2.30  OpenMPI/3.1.1
+		module load deepTools/2.5.4-Python-3.6.6
+
+		bamCoverage -b {input} -o {output}
+
+		module purge
+
+		"""
