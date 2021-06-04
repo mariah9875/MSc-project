@@ -14,8 +14,8 @@ Installation:
 The Snakemake pipeline (Snakefile) and the R scripts are ready for download.
 
 Programs used in the analysis:
-- Python
-- snakemake 
+- Python (v.3.6.6)
+- snakemake (v.5.2.4)
 - R (v.1.3.1093)
 - Cutadapt (v.2.9)
 - COMPSRA (v.1.0.2)
@@ -30,7 +30,7 @@ Programs run in snakemake:
 - stringTie (v.1.3.3b)
 
 Programs run in R:
-- DESeq2 
+- DESeq2 (v.1.28.1) 
 - data.table (v.1.13.2) 
 - multcomp (v.1.4)
 - gplots (v.3.1.1)
