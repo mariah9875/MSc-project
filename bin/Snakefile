@@ -21,7 +21,7 @@ rule all:
 rule fastqc:
 	# Run FastQC on a FASTQ files.
 	input:
-		"../data/trimmed/{sample}.fastq"
+		"data/trimmed/{sample}.fastq"
 	output:
 		"results/QC/trimmed/fastQC/{sample}_fastqc.html",
 		"results/QC/trimmed/fastQC/{sample}_fastqc.zip"
@@ -62,7 +62,7 @@ rule multiqc:
 rule STAR_mapping_v1:
 	# Align reads to reference genome with default parameters
 	input:
-		sample="../data/trimmed/{sample}.fastq",
+		sample="data/trimmed/{sample}.fastq",
 		genome="/projects/fs1/common/genome/lunarc/indicies/star/human/hg38",
 		GTF="/projects/fs1/marhall/data/annotation_files/gencode.v36.annotation.gtf"
 
@@ -95,7 +95,7 @@ rule STAR_mapping_v1:
 rule STAR_mapping_v2:
 	# Align reads to reference genome with default parameters + additonal parameters
 	input:
-		sample="../data/trimmed/{sample}.fastq",
+		sample="data/trimmed/{sample}.fastq",
 		genome="/projects/fs1/common/genome/lunarc/indicies/star/human/hg38",
 		GTF="/projects/fs1/marhall/data/annotation_files/gencode.v36.annotation.gtf"
 
@@ -207,7 +207,7 @@ rule index_bam_v2:
 rule featureCounts:
 	# Quantify sorted bam files with gencode.v36 annotation file
 	input:
-		GTF="../data/annotation_files/gencode.v36.annotation.gtf",
+		GTF="bin/annotation_files/gencode.v36.annotation.gtf",
 		bam=expand("results/sorted_bam/version_1/{sample}_sorted.bam", sample=config["samples"])
 	output:
 		"results/featureCounts/version_1/counts_transc_gencode.v36.csv"
@@ -227,7 +227,7 @@ rule featureCounts:
 rule featureCounts_v2:
 	# Quantify sorted bam files with gencode.v36 annotation file
 	input:
-		GTF="../data/annotation_files/gencode.v36.annotation.gtf",
+		GTF="bin/annotation_files/gencode.v36.annotation.gtf",
 		bam=expand("results/sorted_bam/version_2/{sample}_sorted.bam", sample=config["samples"])
 	output:
 		"results/featureCounts/version_2/counts_transc_v2_gencode.v36.csv"
@@ -249,7 +249,7 @@ rule featureCounts_v2:
 rule stringTie_assembly:
 	# Transcriptome assembly, assemble the read alignments
 	input:
-		GTF="../data/annotation_files/gencode.v36.annotation.gtf",
+		GTF="bin/annotation_files/gencode.v36.annotation.gtf",
 		sample="results/sorted_bam/version_1/{sample}_sorted.bam"
 
 	output:
@@ -271,7 +271,7 @@ rule stringTie_assembly:
 rule stringTie_merge:
 	# merge the assembled transcripts, to have a non-redundant set of transcripts
 	input:
-		GTF="../data/annotation_files/gencode.v36.annotation.gtf",
+		GTF="bin/annotation_files/gencode.v36.annotation.gtf",
 		List="bin/mergelist.txt"
 	output:
 		"results/stringTie/version_1/merged/stringtie_merged.gtf"
