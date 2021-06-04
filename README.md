@@ -69,6 +69,7 @@ The snakemake pipeline takes the trimmed files and performs the follwing steps:
   - Convert bam files to BigWig files for M1 & M2
 
 Directory structure to run snakemake pipeline; the Snakefile is suppose to be in the same directory as the data and bin directories.
+
 **Example:**
 
 **projectdir/**
@@ -89,7 +90,7 @@ A file named config.yaml is created by the user, and the file has to include a l
 #config.yaml
 samples: ["sample_1.fastq", "sample_2.fastq", "sample_3.fastq"]
 ```
-Snake file is executed in the project directory;
+Snake file is executed in the project directory:
 ```
 # run snakefile
 snakemake
