@@ -98,9 +98,8 @@ library(DESeq2)
 # DESEQ2
 # Metadata
 (condition <- factor(c("Chimp", "Chimp", "Human", "Human", "Human", "Human", "Human", "Human", "Chimp", "Chimp", "Chimp")))
-(batch <- factor(c("PT5", "Sandra", "H48", "H6", "H48", "H6", "H48", "H6", "Pt5", "Sandra", "Sandra")))
 (sample <- factor(c("DA026", "DA027", "DA028", "DA035", "DA036", "DA050", "DA056", "DA057", "DA058", "DA059", "DA061")))
-(coldata <- data.frame(row.names=colnames(countdata), sample, condition, batch))
+(coldata <- data.frame(row.names=colnames(countdata), sample, condition))
 
 # DESeq object
 dds <- DESeqDataSetFromMatrix(countData = countdata, colData = coldata, design = ~condition)
