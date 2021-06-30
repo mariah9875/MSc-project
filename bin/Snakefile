@@ -68,7 +68,7 @@ rule STAR_mapping_v1:
 
 	output:
 		"results/Mapping/STAR/version_1/{sample}_Aligned.out.bam",
-		"results/Mapping/STAR/version_1/{sample}_Log.final.out"
+		"results/logs/STAR/version_1/{sample}_Log.final.out"
 	priority: 13
 	shell:
 		"""
